@@ -371,7 +371,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/LessonEnrollment"
         "409":
-          description: Lesson is full, already enrolled, or payment has not been confirmed.
+          description: Lesson is full, already enrolled, the teacher is inactive, or payment has not been confirmed.
           content:
             application/json:
               schema:
