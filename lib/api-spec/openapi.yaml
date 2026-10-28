@@ -3,13 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: API for EDUCA, an online learning platform for Mozambique.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+    description: Service health
+  - name: public
+    description: Public catalogue and learning content
+  - name: account
+    description: Authenticated account operations
+  - name: applications
+    description: Teacher applications and administrative decisions
+  - name: lessons
+    description: Lesson scheduling and participation
+  - name: dashboards
+    description: Role-specific dashboard summaries
 paths:
   /healthz:
     get:
@@ -24,6 +34,426 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /public/stats:
+    get:
+      operationId: getPublicStats
+      tags: [public]
+      summary: Get verified platform totals
+      responses:
+        "200":
+          description: Counts from the database; all values may be zero
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicStats"
+  /subjects:
+    get:
+      operationId: listSubjects
+      tags: [public]
+      summary: List active subjects
+      responses:
+        "200":
+          description: Available subjects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subject"
+  /teachers:
+    get:
+      operationId: listTeachers
+      tags: [public]
+      summary: Search approved active teachers
+      parameters:
+        - in: query
+          name: subject
+          schema:
+            type: string
+        - in: query
+          name: level
+          schema:
+            type: string
+        - in: query
+          name: modality
+          schema:
+            type: string
+            enum: [individual, group, either]
+        - in: query
+          name: query
+          schema:
+            type: string
+        - in: query
+          name: minRating
+          schema:
+            type: number
+            minimum: 0
+            maximum: 5
+      responses:
+        "200":
+          description: Public teacher profiles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeacherPublic"
+  /teachers/{teacherId}:
+    get:
+      operationId: getTeacher
+      tags: [public]
+      summary: Get a public teacher profile
+      parameters:
+        - in: path
+          name: teacherId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherPublic"
+        "404":
+          description: Teacher not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /rankings:
+    get:
+      operationId: getTeacherRankings
+      tags: [public]
+      summary: Get the evidence-based teacher ranking
+      parameters:
+        - in: query
+          name: subject
+          schema:
+            type: string
+        - in: query
+          name: level
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Ranked teachers and new talents
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherRankings"
+  /exam-resources:
+    get:
+      operationId: listExamResources
+      tags: [public]
+      summary: List published exam preparation resources
+      parameters:
+        - in: query
+          name: institution
+          schema:
+            type: string
+        - in: query
+          name: exam
+          schema:
+            type: string
+        - in: query
+          name: subject
+          schema:
+            type: string
+        - in: query
+          name: level
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Published resources
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExamResource"
+  /me:
+    get:
+      operationId: getMyProfile
+      tags: [account]
+      summary: Get the authenticated user's EDUCA profile
+      responses:
+        "200":
+          description: Current profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    patch:
+      operationId: updateMyProfile
+      tags: [account]
+      summary: Update editable profile fields
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+  /teacher-applications:
+    post:
+      operationId: createTeacherApplication
+      tags: [applications]
+      summary: Submit a teacher application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeacherApplicationInput"
+      responses:
+        "201":
+          description: Application created and pending review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherApplication"
+        "409":
+          description: An active application already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      operationId: getMyTeacherApplication
+      tags: [applications]
+      summary: Get the authenticated user's application
+      responses:
+        "200":
+          description: Current application or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherApplicationNullable"
+  /admin/teacher-applications:
+    get:
+      operationId: listTeacherApplications
+      tags: [applications]
+      summary: List teacher applications for administrators
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: "#/components/schemas/ApplicationStatus"
+        - in: query
+          name: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Applications, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeacherApplication"
+        "403":
+          description: Administrator access required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /admin/teacher-applications/{applicationId}/assessment:
+    post:
+      operationId: submitDemoAssessment
+      tags: [applications]
+      summary: Record a demonstration lesson assessment
+      parameters:
+        - in: path
+          name: applicationId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DemoAssessmentInput"
+      responses:
+        "201":
+          description: Assessment stored with calculated score
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DemoAssessment"
+  /admin/teacher-applications/{applicationId}/decision:
+    post:
+      operationId: decideTeacherApplication
+      tags: [applications]
+      summary: Approve, reject, or request another assessment
+      parameters:
+        - in: path
+          name: applicationId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplicationDecisionInput"
+      responses:
+        "200":
+          description: Decision saved and audit logged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherApplication"
+  /lessons:
+    get:
+      operationId: listLessons
+      tags: [lessons]
+      summary: List lessons visible to the authenticated user
+      responses:
+        "200":
+          description: Lessons
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Lesson"
+    post:
+      operationId: createLesson
+      tags: [lessons]
+      summary: Schedule a lesson as an approved teacher
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LessonInput"
+      responses:
+        "201":
+          description: Lesson scheduled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+  /lessons/{lessonId}/enroll:
+    post:
+      operationId: enrollInLesson
+      tags: [lessons]
+      summary: Enrol the authenticated student in a lesson
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      responses:
+        "201":
+          description: Enrolment created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LessonEnrollment"
+  /lessons/{lessonId}/complete:
+    post:
+      operationId: completeLesson
+      tags: [lessons]
+      summary: Confirm lesson completion as its teacher
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Lesson marked complete after validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lesson"
+  /lessons/{lessonId}/reviews:
+    post:
+      operationId: createLessonReview
+      tags: [lessons]
+      summary: Review a completed lesson as an enrolled student
+      parameters:
+        - in: path
+          name: lessonId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LessonReviewInput"
+      responses:
+        "201":
+          description: Review recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LessonReview"
+        "409":
+          description: Review already exists or lesson is not eligible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /dashboard/student:
+    get:
+      operationId: getStudentDashboard
+      tags: [dashboards]
+      summary: Get the student dashboard summary
+      responses:
+        "200":
+          description: Student overview based on stored data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StudentDashboard"
+  /dashboard/teacher:
+    get:
+      operationId: getTeacherDashboard
+      tags: [dashboards]
+      summary: Get the teacher dashboard summary
+      responses:
+        "200":
+          description: Teacher overview based on stored data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeacherDashboard"
+  /dashboard/admin:
+    get:
+      operationId: getAdminDashboard
+      tags: [dashboards]
+      summary: Get the administrator dashboard summary
+      responses:
+        "200":
+          description: Administrative totals and recent activity from the database
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDashboard"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +463,306 @@ components:
           type: string
       required:
         - status
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    PublicStats:
+      type: object
+      properties:
+        approvedTeachers:
+          type: integer
+        completedLessons:
+          type: integer
+        activeSubjects:
+          type: integer
+      required: [approvedTeachers, completedLessons, activeSubjects]
+    Subject:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        levels:
+          type: array
+          items: { type: string }
+      required: [id, name, levels]
+    TeacherPublic:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        photoUrl: { type: ["string", "null"] }
+        bio: { type: string }
+        subjects:
+          type: array
+          items: { type: string }
+        levels:
+          type: array
+          items: { type: string }
+        rating: { type: ["number", "null"] }
+        reviewCount: { type: integer }
+        completedLessons: { type: integer }
+        hourlyRateMzn: { type: ["number", "null"] }
+        modalities:
+          type: array
+          items:
+            type: string
+            enum: [individual, group]
+      required: [id, name, photoUrl, bio, subjects, levels, rating, reviewCount, completedLessons, hourlyRateMzn, modalities]
+    TeacherRankings:
+      type: object
+      properties:
+        ranked:
+          type: array
+          items:
+            allOf:
+              - $ref: "#/components/schemas/TeacherPublic"
+              - type: object
+                properties:
+                  position: { type: integer }
+                  score: { type: number }
+                required: [position, score]
+        newTalents:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeacherPublic"
+      required: [ranked, newTalents]
+    ExamResource:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        institution: { type: ["string", "null"] }
+        exam: { type: ["string", "null"] }
+        subject: { type: string }
+        level: { type: string }
+        topic: { type: ["string", "null"] }
+        resourceType:
+          type: string
+          enum: [exercise, test, material, lesson]
+        description: { type: ["string", "null"] }
+        source: { type: ["string", "null"] }
+        url: { type: ["string", "null"] }
+      required: [id, title, institution, exam, subject, level, topic, resourceType, description, source, url]
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string }
+        email: { type: ["string", "null"] }
+        name: { type: ["string", "null"] }
+        role:
+          type: string
+          enum: [student, teacher, admin]
+        teacherStatus:
+          oneOf:
+            - $ref: "#/components/schemas/ApplicationStatus"
+            - type: "null"
+        phone: { type: ["string", "null"] }
+        level: { type: ["string", "null"] }
+        interests:
+          type: array
+          items: { type: string }
+      required: [id, email, name, role, teacherStatus, phone, level, interests]
+    ProfileUpdate:
+      type: object
+      properties:
+        name: { type: ["string", "null"], maxLength: 160 }
+        phone: { type: ["string", "null"], maxLength: 40 }
+        level: { type: ["string", "null"], maxLength: 100 }
+        interests:
+          type: array
+          items: { type: string, maxLength: 80 }
+    ApplicationStatus:
+      type: string
+      enum: [pending, scheduled, in_review, approved, rejected, suspended]
+    TeacherApplicationInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 160 }
+        phone: { type: string, minLength: 6, maxLength: 40 }
+        identityNumber: { type: string, minLength: 4, maxLength: 80 }
+        bio: { type: string, minLength: 30, maxLength: 2000 }
+        subjects:
+          type: array
+          minItems: 1
+          items: { type: string, maxLength: 80 }
+        levels:
+          type: array
+          minItems: 1
+          items: { type: string, maxLength: 100 }
+        experience: { type: ["string", "null"], maxLength: 2000 }
+        availability: { type: ["string", "null"], maxLength: 2000 }
+        photoUrl: { type: ["string", "null"], format: uri }
+      required: [name, phone, identityNumber, bio, subjects, levels]
+    TeacherApplicationNullable:
+      oneOf:
+        - $ref: "#/components/schemas/TeacherApplication"
+        - type: "null"
+    TeacherApplication:
+      type: object
+      properties:
+        id: { type: string }
+        applicantId: { type: string }
+        name: { type: string }
+        email: { type: ["string", "null"] }
+        phone: { type: string }
+        identityNumber: { type: ["string", "null"] }
+        bio: { type: string }
+        subjects:
+          type: array
+          items: { type: string }
+        levels:
+          type: array
+          items: { type: string }
+        experience: { type: ["string", "null"] }
+        availability: { type: ["string", "null"] }
+        photoUrl: { type: ["string", "null"] }
+        status:
+          $ref: "#/components/schemas/ApplicationStatus"
+        assessmentScore: { type: ["number", "null"] }
+        createdAt: { type: string, format: date-time }
+      required: [id, applicantId, name, email, phone, identityNumber, bio, subjects, levels, experience, availability, photoUrl, status, assessmentScore, createdAt]
+    DemoAssessmentInput:
+      type: object
+      properties:
+        subjectMastery: { type: integer, minimum: 1, maximum: 5 }
+        clarity: { type: integer, minimum: 1, maximum: 5 }
+        organization: { type: integer, minimum: 1, maximum: 5 }
+        questionHandling: { type: integer, minimum: 1, maximum: 5 }
+        communication: { type: integer, minimum: 1, maximum: 5 }
+        notes: { type: ["string", "null"], maxLength: 2000 }
+      required: [subjectMastery, clarity, organization, questionHandling, communication]
+    DemoAssessment:
+      allOf:
+        - $ref: "#/components/schemas/DemoAssessmentInput"
+        - type: object
+          properties:
+            id: { type: string }
+            applicationId: { type: string }
+            evaluatorId: { type: string }
+            totalScore: { type: integer }
+            percentage: { type: number }
+            createdAt: { type: string, format: date-time }
+          required: [id, applicationId, evaluatorId, totalScore, percentage, createdAt]
+    ApplicationDecisionInput:
+      type: object
+      properties:
+        decision:
+          type: string
+          enum: [approve, reject, request_new_assessment, schedule_assessment, begin_review, suspend]
+        notes: { type: ["string", "null"], maxLength: 2000 }
+        scheduledAt: { type: ["string", "null"], format: date-time }
+      required: [decision]
+    LessonStatus:
+      type: string
+      enum: [scheduled, in_progress, completed, cancelled]
+    Lesson:
+      type: object
+      properties:
+        id: { type: string }
+        teacherId: { type: string }
+        teacherName: { type: string }
+        subject: { type: string }
+        level: { type: string }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        startsAt: { type: string, format: date-time }
+        durationMinutes: { type: integer }
+        capacity: { type: integer }
+        modality:
+          type: string
+          enum: [individual, group]
+        hourlyRateMzn: { type: ["number", "null"] }
+        status: { $ref: "#/components/schemas/LessonStatus" }
+        enrolledCount: { type: integer }
+        meetingUrl: { type: ["string", "null"], format: uri }
+      required: [id, teacherId, teacherName, subject, level, title, description, startsAt, durationMinutes, capacity, modality, hourlyRateMzn, status, enrolledCount, meetingUrl]
+    LessonInput:
+      type: object
+      properties:
+        subject: { type: string, minLength: 1, maxLength: 80 }
+        level: { type: string, minLength: 1, maxLength: 100 }
+        title: { type: string, minLength: 3, maxLength: 160 }
+        description: { type: ["string", "null"], maxLength: 2000 }
+        startsAt: { type: string, format: date-time }
+        durationMinutes: { type: integer, minimum: 15, maximum: 240 }
+        capacity: { type: integer, minimum: 1, maximum: 100 }
+        modality:
+          type: string
+          enum: [individual, group]
+        hourlyRateMzn: { type: ["number", "null"], minimum: 0 }
+      required: [subject, level, title, startsAt, durationMinutes, capacity, modality]
+    LessonEnrollment:
+      type: object
+      properties:
+        id: { type: string }
+        lessonId: { type: string }
+        studentId: { type: string }
+        status:
+          type: string
+          enum: [enrolled, attended, absent, cancelled]
+        createdAt: { type: string, format: date-time }
+      required: [id, lessonId, studentId, status, createdAt]
+    LessonReviewInput:
+      type: object
+      properties:
+        stars: { type: integer, minimum: 1, maximum: 5 }
+        clarity: { type: ["boolean", "null"] }
+        helpful: { type: ["boolean", "null"] }
+        recommend: { type: ["boolean", "null"] }
+        comment: { type: ["string", "null"], maxLength: 2000 }
+      required: [stars]
+    LessonReview:
+      allOf:
+        - $ref: "#/components/schemas/LessonReviewInput"
+        - type: object
+          properties:
+            id: { type: string }
+            lessonId: { type: string }
+            teacherId: { type: string }
+            studentId: { type: string }
+            createdAt: { type: string, format: date-time }
+          required: [id, lessonId, teacherId, studentId, createdAt]
+    StudentDashboard:
+      type: object
+      properties:
+        upcomingLessons:
+          type: array
+          items: { $ref: "#/components/schemas/Lesson" }
+        completedLessons: { type: integer }
+        pendingReviews: { type: integer }
+        recommendedTeachers:
+          type: array
+          items: { $ref: "#/components/schemas/TeacherPublic" }
+        interests:
+          type: array
+          items: { type: string }
+      required: [upcomingLessons, completedLessons, pendingReviews, recommendedTeachers, interests]
+    TeacherDashboard:
+      type: object
+      properties:
+        upcomingLessons:
+          type: array
+          items: { $ref: "#/components/schemas/Lesson" }
+        studentCount: { type: integer }
+        completedLessons: { type: integer }
+        averageRating: { type: ["number", "null"] }
+        reviewCount: { type: integer }
+        teacherStatus: { $ref: "#/components/schemas/ApplicationStatus" }
+      required: [upcomingLessons, studentCount, completedLessons, averageRating, reviewCount, teacherStatus]
+    AdminDashboard:
+      type: object
+      properties:
+        students: { type: integer }
+        approvedTeachers: { type: integer }
+        pendingApplications: { type: integer }
+        scheduledLessons: { type: integer }
+        completedLessons: { type: integer }
+        platformRating: { type: ["number", "null"] }
+        recentApplications:
+          type: array
+          items: { $ref: "#/components/schemas/TeacherApplication" }
+      required: [students, approvedTeachers, pendingApplications, scheduledLessons, completedLessons, platformRating, recentApplications]
 

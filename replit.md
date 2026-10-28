@@ -1,15 +1,16 @@
-# [Project name]
+# EDUCA
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+EDUCA connects students and approved teachers in Mozambique through lessons, applications, learning resources and exam preparation.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- `pnpm --filter @workspace/educa run dev` — run the EDUCA web app
+- `pnpm --filter @workspace/api-server run dev` — run the shared API server
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Replit supplies `DATABASE_URL`, Clerk keys and `SESSION_SECRET`.
 
 ## Stack
 
@@ -22,23 +23,35 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/educa` — EDUCA React/Vite interface and branded Clerk pages
+- `artifacts/api-server` — Express API, authorization and application/lesson flows
+- `lib/api-spec/openapi.yaml` — API contract source of truth
+- `lib/db/src/schema/educa.ts` — PostgreSQL schema
+- `README.md` — run instructions, initial admin setup and integration boundaries
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Clerk handles authentication; EDUCA roles and approval states are stored and enforced by the API.
+- Teachers can schedule lessons only after explicit administrator approval; suspension blocks teaching through server checks.
+- Teacher identity numbers are encrypted at rest using a key derived from `SESSION_SECRET`.
+- Ratings and rankings use stored reviews and lesson records; no sample teachers or activity statistics are seeded.
+- Video, payment and outbound email integrations remain disabled until configured.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+The first version supports public teacher discovery, student profiles, teacher applications, administrator demonstration assessments and decisions, lesson scheduling and enrolment, eligible student reviews, server-calculated rankings, and published exam resources.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Use Portuguese (Portugal) understandable in Mozambique and MZN.
+- Keep the interface responsive and mobile-friendly.
+- Public platform totals must come from database records; do not invent activity or teacher data.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Regenerate API clients after changing `lib/api-spec/openapi.yaml`.
+- The initial administrator is granted with the verified-account bootstrap command in `README.md`; public registration cannot assign roles.
+- Do not expose or log encrypted teacher identity data outside administrator-authorized application review.
 
 ## Pointers
 

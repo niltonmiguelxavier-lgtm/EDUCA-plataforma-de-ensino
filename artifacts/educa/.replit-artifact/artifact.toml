@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "EDUCA"
+description = "Plataforma de aprendizagem online que liga estudantes e professores em Moçambique, com procura de professores, candidaturas docentes, aulas, preparação para exames e ferramentas administrativas."
+version = "1.0.0"
+id = "artifacts/educa"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26249
+
+[services.development]
+run = "pnpm --filter @workspace/educa run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/educa", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/educa/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26249"
+BASE_PATH = "/"
