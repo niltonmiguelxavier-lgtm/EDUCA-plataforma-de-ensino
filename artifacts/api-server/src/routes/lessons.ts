@@ -3,9 +3,11 @@ import { and, count, desc, eq, inArray, ne } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   db,
+  educaUsers,
   lessonEnrollments,
   lessonReviews,
   lessons,
+  teacherProfiles,
 } from "@workspace/db";
 import {
   CompleteLessonParams,
@@ -49,6 +51,17 @@ router.get("/lessons", requireEducaUser, async (req, res): Promise<void> => {
         ),
       );
     const enrolledIds = enrolledLessonRows.map((item) => item.lessonId);
+    const activeTeacherRows = await db
+      .select({ userId: teacherProfiles.userId })
+      .from(teacherProfiles)
+      .innerJoin(educaUsers, eq(educaUsers.id, teacherProfiles.userId))
+      .where(
+        and(
+          eq(teacherProfiles.isActive, true),
+          eq(educaUsers.role, "teacher"),
+        ),
+      );
+    const activeTeacherIds = activeTeacherRows.map((teacher) => teacher.userId);
     rows = await db
       .select()
       .from(lessons)
@@ -61,11 +74,19 @@ router.get("/lessons", requireEducaUser, async (req, res): Promise<void> => {
         ),
       )
       .orderBy(desc(lessons.startsAt));
-    const availableRows = await db
-      .select()
-      .from(lessons)
-      .where(and(eq(lessons.status, "scheduled"), ne(lessons.teacherId, user.id)))
-      .orderBy(desc(lessons.startsAt));
+    const availableRows = activeTeacherIds.length
+      ? await db
+          .select()
+          .from(lessons)
+          .where(
+            and(
+              eq(lessons.status, "scheduled"),
+              ne(lessons.teacherId, user.id),
+              inArray(lessons.teacherId, activeTeacherIds),
+            ),
+          )
+          .orderBy(desc(lessons.startsAt))
+      : [];
     const byId = new Map([...rows, ...availableRows].map((lesson) => [lesson.id, lesson]));
     rows = [...byId.values()].sort(
       (a, b) => b.startsAt.getTime() - a.startsAt.getTime(),
@@ -137,6 +158,19 @@ router.post(
         if (lesson.status !== "scheduled" || lesson.startsAt <= new Date()) {
           throw new Error("LESSON_NOT_OPEN");
         }
+        const [teacher] = await tx
+          .select({ isActive: teacherProfiles.isActive, role: educaUsers.role })
+          .from(teacherProfiles)
+          .innerJoin(educaUsers, eq(educaUsers.id, teacherProfiles.userId))
+          .where(eq(teacherProfiles.userId, lesson.teacherId))
+          .for("update")
+          .limit(1);
+        if (!teacher?.isActive || teacher.role !== "teacher") {
+          throw new Error("TEACHER_NOT_ACTIVE");
+        }
+        if (lesson.hourlyRateMzn !== null && Number(lesson.hourlyRateMzn) > 0) {
+          throw new Error("PAYMENT_REQUIRED");
+        }
         const [existing] = await tx
           .select({ id: lessonEnrollments.id })
           .from(lessonEnrollments)
@@ -186,7 +220,10 @@ router.post(
       const status =
         code === "LESSON_NOT_FOUND"
           ? 404
-          : code === "LESSON_FULL" || code === "ALREADY_ENROLLED"
+          : code === "LESSON_FULL" ||
+              code === "ALREADY_ENROLLED" ||
+              code === "PAYMENT_REQUIRED" ||
+              code === "TEACHER_NOT_ACTIVE"
             ? 409
             : code === "LESSON_NOT_OPEN"
               ? 400
@@ -200,7 +237,11 @@ router.post(
               ? "Esta aula já não tem vagas."
               : code === "ALREADY_ENROLLED"
                 ? "Já está inscrito nesta aula."
-                : "As inscrições para esta aula estão encerradas.",
+                : code === "PAYMENT_REQUIRED"
+                  ? "A reserva desta aula paga não está disponível sem confirmação de pagamento."
+                  : code === "TEACHER_NOT_ACTIVE"
+                    ? "Este professor não está activo para receber novas reservas."
+                    : "As inscrições para esta aula estão encerradas.",
       });
     }
   },
