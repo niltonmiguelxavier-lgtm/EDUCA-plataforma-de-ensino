@@ -47,4 +47,4 @@ The database starts with subject categories and configurable server-side scoring
 
 ## Not configured yet
 
-Video conferencing, payment providers (including M-Pesa and e-Mola), outbound email, document storage and course/material administration require external service configuration and are not represented as working integrations. Exam resources are only shown after an administrator publishes and cites their sources. The first version does not yet include full notification delivery, configurable ranking controls in the admin UI, or complete audit-history browsing.
+Video conferencing, payment providers (including M-Pesa and e-Mola), outbound email, document storage and course/material administration require external service configuration and are not represented as working integrations. Until a verified payment flow is integrated, the API and interface block bookings for paid lessons; free lessons remain available. Exam resources are only shown after an administrator publishes and cites their sources. The first version does not yet include full notification delivery, configurable ranking controls in the admin UI, or complete audit-history browsing.
