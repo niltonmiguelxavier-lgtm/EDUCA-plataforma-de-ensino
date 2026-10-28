@@ -137,6 +137,9 @@ router.post(
         if (lesson.status !== "scheduled" || lesson.startsAt <= new Date()) {
           throw new Error("LESSON_NOT_OPEN");
         }
+        if (lesson.hourlyRateMzn !== null && Number(lesson.hourlyRateMzn) > 0) {
+          throw new Error("PAYMENT_REQUIRED");
+        }
         const [existing] = await tx
           .select({ id: lessonEnrollments.id })
           .from(lessonEnrollments)
@@ -186,7 +189,7 @@ router.post(
       const status =
         code === "LESSON_NOT_FOUND"
           ? 404
-          : code === "LESSON_FULL" || code === "ALREADY_ENROLLED"
+          : code === "LESSON_FULL" || code === "ALREADY_ENROLLED" || code === "PAYMENT_REQUIRED"
             ? 409
             : code === "LESSON_NOT_OPEN"
               ? 400
@@ -200,7 +203,9 @@ router.post(
               ? "Esta aula já não tem vagas."
               : code === "ALREADY_ENROLLED"
                 ? "Já está inscrito nesta aula."
-                : "As inscrições para esta aula estão encerradas.",
+                : code === "PAYMENT_REQUIRED"
+                  ? "A reserva desta aula paga não está disponível sem confirmação de pagamento."
+                  : "As inscrições para esta aula estão encerradas.",
       });
     }
   },
