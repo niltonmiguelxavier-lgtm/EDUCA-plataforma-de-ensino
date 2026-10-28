@@ -370,6 +370,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LessonEnrollment"
+        "409":
+          description: Lesson is full, already enrolled, or payment has not been confirmed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /lessons/{lessonId}/complete:
     post:
       operationId: completeLesson
