@@ -5,6 +5,9 @@ import accountRouter from "./account";
 import applicationsRouter from "./applications";
 import lessonsRouter from "./lessons";
 import dashboardsRouter from "./dashboards";
+import notificationsRouter from "./notifications";
+import walletRouter from "./wallet";
+import reportsRouter from "./reports";
 
 const router: IRouter = Router();
 
@@ -14,5 +17,8 @@ router.use(accountRouter);
 router.use(applicationsRouter);
 router.use(lessonsRouter);
 router.use(dashboardsRouter);
+router.use(notificationsRouter);
+router.use(walletRouter);
+router.use(reportsRouter);
 
 export default router;
